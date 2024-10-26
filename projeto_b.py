@@ -1,15 +1,14 @@
 import os
 import cv2
 import numpy as np
-from sklearn.model_selection import train_test_split
+import pickle  # Para salvar e carregar o encoder
 from sklearn.preprocessing import LabelEncoder
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D, Dense, Dropout
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-# Função para carregar imagens sem redimensionar ou com maior resolução (por exemplo, 128x128)
-def carregar_imagens_opencv(diretorio_base, tamanho=(64, 64)):  # Pode alterar para (256, 256) ou manter resolução original
+def carregar_imagens_opencv(diretorio_base, tamanho=(64, 64)):
     imagens = []
     labels = []
     
@@ -20,101 +19,143 @@ def carregar_imagens_opencv(diretorio_base, tamanho=(64, 64)):  # Pode alterar p
             for imagem_nome in os.listdir(caminho_classe):
                 caminho_imagem = os.path.join(caminho_classe, imagem_nome)
                 try:
-                    imagem = cv2.imread(caminho_imagem)
-                    # Se quiser redimensionar, mantenha o código abaixo
-                    imagem = cv2.resize(imagem, tamanho)
-                    imagem = cv2.cvtColor(imagem, cv2.COLOR_BGR2RGB)
-                    imagem_normalizada = imagem / 255.0
+                    imagem = cv2.imread(caminho_imagem, cv2.IMREAD_GRAYSCALE)  
+                    imagem = cv2.resize(imagem, tamanho)  
+                    imagem_normalizada = imagem / 255.0  
                     imagens.append(imagem_normalizada)
                     labels.append(classe)
                 except Exception as e:
                     print(f"Erro ao carregar imagem {caminho_imagem}: {e}")
     
     imagens = np.array(imagens)
+    imagens = np.expand_dims(imagens, axis=-1)  
     labels = np.array(labels)
     return imagens, labels
 
-# Função para construir a CNN
 def construir_cnn(input_shape, num_classes):
     model = Sequential()
-
+    
+    # Primeira camada
     model.add(Conv2D(32, (3, 3), activation='relu', input_shape=input_shape))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-
+    
+    # Segunda camada
     model.add(Conv2D(64, (3, 3), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    model.add(Conv2D(128, (3, 3), activation='relu'))
+    # Terceira camada
+    model.add(Conv2D(64, (3, 3), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    # Use GlobalAveragePooling2D para permitir que o modelo lide com resoluções maiores
+    # Otimização para imagens maiores
     model.add(GlobalAveragePooling2D())
+    model.add(Dense(64, activation='relu'))
+    model.add(Dropout(0.3))
 
-    model.add(Dense(128, activation='relu'))
-    model.add(Dropout(0.5))
-
+    # Camada Final
     model.add(Dense(num_classes, activation='softmax'))
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
     return model
 
-# Definir os caminhos
 train_dir = 'C:/Users/Matheus Yago/Desktop/poker/archive/train'
 valid_dir = 'C:/Users/Matheus Yago/Desktop/poker/archive/valid'
 test_dir = 'C:/Users/Matheus Yago/Desktop/poker/archive/test'
+model_path = 'modelo_cnn_cartas.h5' 
+encoder_path = 'label_encoder.pkl'   
 
-# Carregar os dados (pode ajustar o tamanho para resolução desejada)
-X_train, y_train = carregar_imagens_opencv(train_dir, tamanho=(64, 64))
-X_valid, y_valid = carregar_imagens_opencv(valid_dir, tamanho=(64, 64))
-X_test, y_test = carregar_imagens_opencv(test_dir, tamanho=(64, 64))
+treinar_modelo = input("Deseja treinar o modelo? (s/n): ").strip().lower()
 
-# Codificar as labels
-encoder = LabelEncoder()
-y_train_encoded = encoder.fit_transform(y_train)
-y_valid_encoded = encoder.transform(y_valid)
-y_test_encoded = encoder.transform(y_test)
+if treinar_modelo == 's' or not os.path.exists(model_path):
+    X_train, y_train = carregar_imagens_opencv(train_dir, tamanho=(64, 64))
+    X_valid, y_valid = carregar_imagens_opencv(valid_dir, tamanho=(64, 64))
+    X_test, y_test = carregar_imagens_opencv(test_dir, tamanho=(64, 64))
 
-# Converter para one-hot encoding
-y_train_cat = to_categorical(y_train_encoded, num_classes=len(np.unique(y_train)))
-y_valid_cat = to_categorical(y_valid_encoded, num_classes=len(np.unique(y_valid)))
-y_test_cat = to_categorical(y_test_encoded, num_classes=len(np.unique(y_test)))
+    encoder = LabelEncoder()
+    y_train_encoded = encoder.fit_transform(y_train)
+    y_valid_encoded = encoder.transform(y_valid)
+    y_test_encoded = encoder.transform(y_test)
 
-# Definir parâmetros do modelo
-input_shape = (64, 64, 3)  # Atualizar para o novo tamanho da imagem (exemplo: 128x128x3)
-num_classes = len(np.unique(y_train))
+    # Salvar o encoder
+    with open(encoder_path, 'wb') as f:
+        pickle.dump(encoder, f)
 
-# Construir a CNN
-cnn_model = construir_cnn(input_shape, num_classes)
+    y_train_cat = to_categorical(y_train_encoded, num_classes=len(np.unique(y_train)))
+    y_valid_cat = to_categorical(y_valid_encoded, num_classes=len(np.unique(y_valid)))
+    y_test_cat = to_categorical(y_test_encoded, num_classes=len(np.unique(y_test)))
 
-# Aumento de dados - definindo transformações
-datagen = ImageDataGenerator(
-    rotation_range=20,      # Rotação de até 20 graus
-    width_shift_range=0.2,  # Translação horizontal de até 20%
-    height_shift_range=0.2, # Translação vertical de até 20%
-    zoom_range=0.2,         # Zoom
-    horizontal_flip=True,   # Espelhamento horizontal
-    fill_mode='nearest'     # Preenchimento dos pixels fora da borda
-)
+    input_shape = (64, 64, 1)  
+    num_classes = len(np.unique(y_train))
 
-# Treinamento com aumento de dados
-cnn_model.fit(
-    datagen.flow(X_train, y_train_cat, batch_size=32), 
-    validation_data=(X_valid, y_valid_cat), 
-    epochs=30
-)
+    cnn_model = construir_cnn(input_shape, num_classes)
 
-# Avaliar o modelo
-test_loss, test_acc = cnn_model.evaluate(X_test, y_test_cat)
-print(f'Acurácia no teste: {test_acc}')
+    datagen = ImageDataGenerator(
+        rotation_range=20,      
+        width_shift_range=0.2,  
+        height_shift_range=0.2, 
+        zoom_range=0.2,         
+        horizontal_flip=True,   
+        fill_mode='nearest'     
+    )
 
-# Fazer previsões no conjunto de teste
-y_test_pred_cat = cnn_model.predict(X_test)
-y_test_pred = np.argmax(y_test_pred_cat, axis=1)
+    # Treinamento
+    cnn_model.fit(
+        datagen.flow(X_train, y_train_cat, batch_size=32), 
+        validation_data=(X_valid, y_valid_cat), 
+        epochs=128
+    )
+    
+    # Avaliar o modelo
+    test_loss, test_acc = cnn_model.evaluate(X_test, y_test_cat)
+    print(f'Acurácia no teste: {test_acc}')
 
-# Contar acertos e erros
-acertos = np.sum(y_test_encoded == y_test_pred)
-erros = np.sum(y_test_encoded != y_test_pred)
+    # Salvar o modelo treinado
+    cnn_model.save(model_path)
+    print("Modelo treinado e salvo com sucesso.")
+else:
+    # Carregar modelo salvo
+    cnn_model = load_model(model_path)
+    print("Modelo carregado com sucesso.")
 
-print(f'Número de acertos: {acertos}')
-print(f'Número de erros: {erros}')
+    # Carregar o encoder salvo
+    with open(encoder_path, 'rb') as f:
+        encoder = pickle.load(f)
+    print("Encoder carregado com sucesso.")
+
+
+# Classificar Input
+def classificar_imagens_novas(diretorio, modelo, encoder):
+    imagens = []
+    nomes_imagens = []
+    
+    for imagem_nome in os.listdir(diretorio):
+        caminho_imagem = os.path.join(diretorio, imagem_nome)
+        
+        if os.path.isfile(caminho_imagem):
+            try:
+                imagem = cv2.imread(caminho_imagem, cv2.IMREAD_GRAYSCALE)
+                imagem = cv2.resize(imagem, (64, 64)) 
+                imagem_normalizada = imagem / 255.0
+                imagens.append(imagem_normalizada)
+                nomes_imagens.append(imagem_nome)  
+            except Exception as e:
+                print(f"Erro ao carregar imagem {caminho_imagem}: {e}")
+    
+    if len(imagens) == 0:
+        print("Nenhuma imagem encontrada.")
+        return
+    
+    imagens = np.array(imagens)
+    imagens = np.expand_dims(imagens, axis=-1)
+
+    previsoes = modelo.predict(imagens)
+    classes_previstas = encoder.inverse_transform(np.argmax(previsoes, axis=1))
+    
+    cartas_formatadas = ", ".join(classes_previstas)
+    print(f"[{cartas_formatadas}]")
+
+# Verifica Input
+input_dir = 'C:/Users/Matheus Yago/Desktop/poker/archive/input1'
+classificar_imagens_novas(input_dir, cnn_model, encoder)
+
