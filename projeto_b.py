@@ -246,7 +246,11 @@ table = formatar_cartas(table)
 cards = formatar_cartas(cards) 
 score = hand_score(classify_poker_hand(cards))
 
+#Interface
 os.system('cls')
+enemy = input("Quantos jogadores antes de você apostaram: ")
+cowards = input("Quantos jogadores antes de você desistiram: ")
+
 os.system('cls')
 print("====================== POKERBRO ======================\n")
 
@@ -262,5 +266,10 @@ print("Você possui um " + classify_poker_hand(cards) + " - " + str(score) + " P
 
 print("\n=================== CARDS ==================\n")
 print(cards)
+
+print("\n=================== Game ==================\n")
+print("Oponentes: " + str(enemy))
+print("Covardes: " + str(cowards))
+print("\nSugestão: ")
 
 print("\n====================== POKERBRO ====================== \n")
