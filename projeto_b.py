@@ -177,10 +177,11 @@ def classificar_input(diretorio, modelo, encoder):
     #print(f"[{cartas_formatadas}]")
 
 def classify_poker_hand(cards):
-    values = [card.split(' ')[0] for card in cards]
-    suits = [card.split(' ')[-1] for card in cards]
+    #Exemplo Entrada: 
+    values = [card.split(' ')[0] for card in cards] #--> ["Queen" <-- , "Of", "Spades"]
+    suits = [card.split(' ')[-1] for card in cards] #--> ["Queen", "Of", "Spades" <--]
     
-    value_counts = Counter(values)
+    value_counts = Counter(values) #
     suit_counts = Counter(suits)
     
     value_count_list = sorted(value_counts.values(), reverse=True)
@@ -192,9 +193,12 @@ def classify_poker_hand(cards):
                 'jack': 11, 'queen': 12, 'king': 13, 'ace': 14}
     ranks = sorted([rank_map[value] for value in values])
 
+    royal = True if ranks[0] == 10 and ranks[-1] == 14 else False
     is_straight = all(ranks[i] + 1 == ranks[i + 1] for i in range(len(ranks) - 1))
 
-    if is_flush and is_straight:
+    if is_flush and is_straight and royal:
+        return "Royal Flush"
+    elif is_flush and is_straight:
         return "Straight Flush"
     elif value_count_list == [4, 1]:
         return "Four of a Kind"
@@ -213,11 +217,14 @@ def classify_poker_hand(cards):
     else:
         return "High Card"
     
+
 def formatar_cartas(cartas_str):
     cartas_formatadas = [carta.strip() for carta in cartas_str.split(",")]
     return cartas_formatadas
 
 def hand_score(hand):
+    if hand == "Royal Flush":
+        return 10
     if hand == "Straight Flush":
         return 9
     if hand == "Four of a Kind":
