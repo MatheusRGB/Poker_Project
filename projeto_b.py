@@ -1,13 +1,17 @@
 import os
 import cv2
 import numpy as np
-import pickle  # Para salvar e carregar o encoder
+import pickle  
+import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D, Dense, Dropout
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from collections import Counter
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report
 
 def carregar_imagens_opencv(diretorio_base, tamanho=(64, 64)):
     imagens = []
@@ -188,14 +192,9 @@ def classify_poker_hand(cards):
                 'jack': 11, 'queen': 12, 'king': 13, 'ace': 14}
     ranks = sorted([rank_map[value] for value in values])
 
-    royal = True if ranks[0] == 10 and ranks[-1] == 14 else False
-
-    print(ranks)
     is_straight = all(ranks[i] + 1 == ranks[i + 1] for i in range(len(ranks) - 1))
 
-    if is_flush and is_straight and royal:
-        return "Royal Flush"
-    elif is_flush and is_straight:
+    if is_flush and is_straight:
         return "Straight Flush"
     elif value_count_list == [4, 1]:
         return "Four of a Kind"
@@ -219,8 +218,6 @@ def formatar_cartas(cartas_str):
     return cartas_formatadas
 
 def hand_score(hand):
-    if hand == "Royal Flush":
-        return 10
     if hand == "Straight Flush":
         return 9
     if hand == "Four of a Kind":
@@ -253,11 +250,35 @@ table = formatar_cartas(table)
 cards = formatar_cartas(cards) 
 score = hand_score(classify_poker_hand(cards))
 
-#Interface
 os.system('cls')
 enemy = input("Quantos jogadores antes de você apostaram: ")
 cowards = input("Quantos jogadores antes de você desistiram: ")
 
+#RANDOMFOREST
+
+data = pd.read_csv('C:/Users/Matheus Yago/Desktop/poker/games.csv')
+
+X = data[['Score', 'Apostadores', 'Desistentes']]
+y = data['Resultado']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+decision_model = RandomForestClassifier(random_state=42)
+decision_model.fit(X_train, y_train)
+
+y_pred = decision_model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f'Acurácia do modelo: {accuracy:.2f}')
+
+input = pd.DataFrame({
+    'Score': [score],                
+    'Apostadores': [enemy],  
+    'Desistentes': [cowards],
+})
+
+decisao = decision_model.predict(input)
+
+#INTERFACE
 os.system('cls')
 print("====================== POKERBRO ======================\n")
 
@@ -277,6 +298,7 @@ print(cards)
 print("\n=================== Game ==================\n")
 print("Oponentes: " + str(enemy))
 print("Covardes: " + str(cowards))
-print("\nSugestão: ")
+print("\nSugestão: " + decisao[0])
 
+print(f'\nAcurácia: {accuracy:.2f}')
 print("\n====================== POKERBRO ====================== \n")
