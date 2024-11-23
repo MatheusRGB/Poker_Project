@@ -262,24 +262,37 @@ cowards = input("Quantos jogadores antes de você desistiram: ")
 #RANDOMFOREST
 
 data = pd.read_csv('C:/Users/Matheus Yago/Desktop/poker/games.csv')
+data_2 = pd.read_csv('C:/Users/Matheus Yago/Desktop/poker/games_2.csv')
 
-X = data[['Score', 'Apostadores', 'Desistentes']]
+
+X = data[['Score']]
 y = data['Resultado']
 
+X_2 = data_2[['Score', 'Apostadores', 'Desistentes']]
+y_2 = data_2['Resultado']
+
 decision_model = RandomForestClassifier(criterion='entropy', max_depth=10, n_estimators=100, class_weight='balanced', random_state=50)
+decision_model_2 = RandomForestClassifier(criterion='entropy', max_depth=10, n_estimators=100, class_weight='balanced', random_state=50)
 
 k = 5
 k_fold = cross_val_score(decision_model, X, y, cv=k)
+k_fold_2 = cross_val_score(decision_model, X_2, y_2, cv=k)
 
 decision_model.fit(X, y)
+decision_model_2.fit(X_2, y_2)
 
 input = pd.DataFrame({
+    'Score': [score],                
+})
+
+input_2 = pd.DataFrame({
     'Score': [score],                
     'Apostadores': [enemy],  
     'Desistentes': [cowards],
 })
 
 decisao = decision_model.predict(input)
+decisao_2 = decision_model_2.predict(input_2)
 
 #INTERFACE
 #os.system('cls')
@@ -302,9 +315,11 @@ print("\n=================== Game ==================\n")
 print("Apostadores: " + str(enemy))
 print("Desistentes: " + str(cowards))
 print("\nSugestão: " + decisao[0])
+print("\nSugestão 2: " + decisao_2[0])
 
 print(f'\nAcurácias por fold: {k_fold}')
 print(f'Acurácia média: {k_fold.mean():.2f}')
+print("\nBase 2")
+print(f'\nAcurácias por fold: {k_fold_2}')
+print(f'Acurácia média: {k_fold_2.mean():.2f}')
 print("\n====================== POKERBRO ====================== \n")
-
-
