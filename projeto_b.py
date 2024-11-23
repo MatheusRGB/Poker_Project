@@ -13,6 +13,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
 
+from sklearn.model_selection import cross_val_score
+from sklearn.ensemble import RandomForestClassifier
+
 def carregar_imagens_opencv(diretorio_base, tamanho=(64, 64)):
     imagens = []
     labels = []
@@ -123,7 +126,7 @@ if treinar_modelo == '2' or not os.path.exists(model_path):
     cnn_model.fit(
         datagen.flow(X_train, y_train_cat, batch_size=32), 
         validation_data=(X_valid, y_valid_cat), 
-        epochs=256
+        epochs=30
     )
     
     # Avaliar o modelo
@@ -177,11 +180,10 @@ def classificar_input(diretorio, modelo, encoder):
     #print(f"[{cartas_formatadas}]")
 
 def classify_poker_hand(cards):
-    #Exemplo Entrada: 
-    values = [card.split(' ')[0] for card in cards] #--> ["Queen" <-- , "Of", "Spades"]
-    suits = [card.split(' ')[-1] for card in cards] #--> ["Queen", "Of", "Spades" <--]
+    values = [card.split(' ')[0] for card in cards]
+    suits = [card.split(' ')[-1] for card in cards]
     
-    value_counts = Counter(values) #
+    value_counts = Counter(values)
     suit_counts = Counter(suits)
     
     value_count_list = sorted(value_counts.values(), reverse=True)
@@ -193,12 +195,9 @@ def classify_poker_hand(cards):
                 'jack': 11, 'queen': 12, 'king': 13, 'ace': 14}
     ranks = sorted([rank_map[value] for value in values])
 
-    royal = True if ranks[0] == 10 and ranks[-1] == 14 else False
     is_straight = all(ranks[i] + 1 == ranks[i + 1] for i in range(len(ranks) - 1))
 
-    if is_flush and is_straight and royal:
-        return "Royal Flush"
-    elif is_flush and is_straight:
+    if is_flush and is_straight:
         return "Straight Flush"
     elif value_count_list == [4, 1]:
         return "Four of a Kind"
@@ -217,7 +216,6 @@ def classify_poker_hand(cards):
     else:
         return "High Card"
     
-
 def formatar_cartas(cartas_str):
     cartas_formatadas = [carta.strip() for carta in cartas_str.split(",")]
     return cartas_formatadas
@@ -257,7 +255,7 @@ table = formatar_cartas(table)
 cards = formatar_cartas(cards) 
 score = hand_score(classify_poker_hand(cards))
 
-os.system('cls')
+#os.system('cls')
 enemy = input("Quantos jogadores antes de você apostaram: ")
 cowards = input("Quantos jogadores antes de você desistiram: ")
 
@@ -268,14 +266,12 @@ data = pd.read_csv('C:/Users/Matheus Yago/Desktop/poker/games.csv')
 X = data[['Score', 'Apostadores', 'Desistentes']]
 y = data['Resultado']
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+decision_model = RandomForestClassifier(criterion='entropy', max_depth=10, n_estimators=100, class_weight='balanced', random_state=50)
 
-decision_model = RandomForestClassifier(random_state=42)
-decision_model.fit(X_train, y_train)
+k = 5
+k_fold = cross_val_score(decision_model, X, y, cv=k)
 
-y_pred = decision_model.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred)
-print(f'Acurácia do modelo: {accuracy:.2f}')
+decision_model.fit(X, y)
 
 input = pd.DataFrame({
     'Score': [score],                
@@ -286,7 +282,7 @@ input = pd.DataFrame({
 decisao = decision_model.predict(input)
 
 #INTERFACE
-os.system('cls')
+#os.system('cls')
 print("====================== POKERBRO ======================\n")
 
 print("=================== HAND ===================\n")
@@ -303,9 +299,12 @@ print("\n=================== CARDS ==================\n")
 print(cards)
 
 print("\n=================== Game ==================\n")
-print("Oponentes: " + str(enemy))
-print("Covardes: " + str(cowards))
+print("Apostadores: " + str(enemy))
+print("Desistentes: " + str(cowards))
 print("\nSugestão: " + decisao[0])
 
-print(f'\nAcurácia: {accuracy:.2f}')
+print(f'\nAcurácias por fold: {k_fold}')
+print(f'Acurácia média: {k_fold.mean():.2f}')
 print("\n====================== POKERBRO ====================== \n")
+
+
