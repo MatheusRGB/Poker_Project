@@ -187,7 +187,7 @@ def classify_poker_hand(cards):
     suit_counts = Counter(suits)
     
     value_count_list = sorted(value_counts.values(), reverse=True)
-    
+    royal = True if ranks[0] == 10 and ranks[-1] == 14 else False
     is_flush = len(suit_counts) == 1
     
     rank_map = {'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6,
@@ -197,7 +197,9 @@ def classify_poker_hand(cards):
 
     is_straight = all(ranks[i] + 1 == ranks[i + 1] for i in range(len(ranks) - 1))
 
-    if is_flush and is_straight:
+    if is_flush and is_straight and royal:
+        return "Royal Flush"
+    elif is_flush and is_straight:
         return "Straight Flush"
     elif value_count_list == [4, 1]:
         return "Four of a Kind"
