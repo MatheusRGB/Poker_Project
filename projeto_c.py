@@ -1,3 +1,6 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' 
+
 from tensorflow.keras.models import load_model
 from collections import Counter
 from joblib import load
@@ -11,6 +14,28 @@ import numpy as np
 import json
 import os
 
+"""
+    aposta = -1
+    while (True):
+        aposta = input("Informe aposta necessária para continuar em dólar:(exemplo: 0.99)\n--> ")
+        try:
+            aposta = float(aposta.replace(',', '.'))
+            break
+
+        except:
+            print("Valor inválido, por favor tente novamente.")
+
+    jackpot = -1
+    while (True):
+        jackpot = input("Informe o valor do jackpot no momento, em dólar: (exemplo: 5.50)\n--> ")
+
+        try:
+            jackpot = float(jackpot.replace(',', '.'))
+            break
+
+        except:
+            print("Valor inválido, por favor tente novamente.")
+ """
 
 def classify_poker_hand(cards):
     values = [card.split(' ')[0] for card in cards]
@@ -109,27 +134,6 @@ def getEntradas():
             if (perfil <= 2 and perfil >= 0):
                 break
 
-    aposta = -1
-    while (True):
-        aposta = input("Informe aposta necessária para continuar em dólar:(exemplo: 0.99)\n--> ")
-        try:
-            aposta = float(aposta.replace(',', '.'))
-            break
-
-        except:
-            print("Valor inválido, por favor tente novamente.")
-
-    jackpot = -1
-    while (True):
-        jackpot = input("Informe o valor do jackpot no momento, em dólar: (exemplo: 5.50)\n--> ")
-
-        try:
-            jackpot = float(jackpot.replace(',', '.'))
-            break
-
-        except:
-            print("Valor inválido, por favor tente novamente.")
-
     jogadores_restantes = -1
     while (True):
         jogadores_restantes = input("Jogadores restantes:\n--> ")
@@ -149,11 +153,11 @@ def getEntradas():
 
             if (desistentes >= 0):
                 break
-    return perfil, aposta, jackpot, jogadores_restantes, desistentes
+    return perfil, jogadores_restantes, desistentes
 
 
 if __name__ == "__main__":
-    print("""
+    print("""\n\n\n
         
     /$$$$$$$$           /$$                           /$$$$$$$                     
     | $$__  $$         | $$                          | $$__  $$                    
@@ -168,7 +172,7 @@ if __name__ == "__main__":
     print("Adicione as imagens das cartas nas pastas \"cartas/mao\" e \"cartas/mesa\"")
     input("Aperte ENTER para inciar...")
 
-    perfil, aposta, jackpot, jogadores_restantes, desistentes = getEntradas()
+    perfil, jogadores_restantes, desistentes = getEntradas() #aposta, jackpot
 
     model = best_model = load_model("./modelos/best_custom_model73,25%.keras")
 
@@ -177,6 +181,7 @@ if __name__ == "__main__":
 
     predictions = []
 
+    print("\nAnalisando cartas...\n")
     path = "./cartas/"
     for i in os.listdir(path):
         for img in os.listdir(os.path.join(path, i)):
@@ -187,29 +192,30 @@ if __name__ == "__main__":
             predicted_class = getPredictionClass(classes, prediction, predictions)
             predictions.append(predicted_class)
             print(predicted_class)
-            '''
+            
             img = Image.open(img_path)
             img_resized = img.resize((224, 224))
             img_gray = img_resized.convert('L') 
             plt.imshow(np.array(img_gray), cmap='gray')  
             plt.axis('off') 
             plt.show() 
-            '''
+            
 
     handRank = classify_poker_hand(predictions)
     handRankInt = handToInt(handRank)
-    print("Você tem: ", handRank)
+    print("\nVocê tem: ", handRank)
 
-    rf_loaded = load("modelos/random_forest_model83%.joblib")
+    rf_loaded = load("modelos/random_forest_model89%.joblib")
 
     new_data = pd.DataFrame({
         "Score": [handRankInt],
         "Perfil": [perfil],
-        "Aposta Necessaria": [aposta],
-        "Jackpot": [jackpot],
+        #"Aposta Necessaria": [aposta],
+        #"Jackpot": [jackpot],
         "Jogadores Restantes": [jogadores_restantes],
         "Desistentes": [desistentes]
     })
 
     prediction = rf_loaded.predict(new_data)
     print("Sugestão: ", "Continuar" if prediction == 1 else "Desistir")
+    print("\n\n")
